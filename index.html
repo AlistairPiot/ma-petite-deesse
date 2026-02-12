@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Doudou ❤️</title>
+  <meta name="description" content="365 raisons pour lesquelles je t'aime">
+  <meta name="theme-color" content="#be185d">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ─── Écran de connexion ─── -->
+  <section id="login-screen" class="screen">
+    <div class="card login-card">
+      <div class="logo-heart">❤️</div>
+      <h1>Mon Doudou</h1>
+      <p class="subtitle">Un espace rien que pour nous deux</p>
+      <form id="login-form" autocomplete="on">
+        <div class="form-group">
+          <label for="username">Identifiant</label>
+          <input type="text" id="username" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" autocomplete="current-password" required>
+        </div>
+        <p id="login-error" class="error-text" hidden>Identifiant ou mot de passe incorrect</p>
+        <button type="submit" class="btn btn-primary btn-full">Se connecter</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ─── Écran du quiz ─── -->
+  <section id="quiz-screen" class="screen" hidden>
+    <div class="card quiz-card">
+      <div class="logo-heart">💕</div>
+      <h2>Petit quiz de l'amour</h2>
+      <p class="subtitle">Réponds correctement pour débloquer ton cadeau !</p>
+      <div class="quiz-progress">
+        <div id="quiz-progress-bar" class="quiz-progress-bar"></div>
+      </div>
+      <div id="quiz-body">
+        <p id="quiz-question-number" class="quiz-question-number"></p>
+        <p id="quiz-question-text" class="quiz-question-text"></p>
+        <div id="quiz-choices" class="quiz-choices"></div>
+        <button id="quiz-next-btn" class="btn btn-primary btn-full" disabled>Suivant</button>
+      </div>
+      <div id="quiz-result" class="quiz-result" hidden>
+        <p id="quiz-result-text"></p>
+        <button id="quiz-retry-btn" class="btn btn-secondary btn-full" hidden>Réessayer</button>
+        <button id="quiz-calendar-btn" class="btn btn-primary btn-full" hidden>Accéder au calendrier</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── Écran du calendrier ─── -->
+  <section id="calendar-screen" class="screen" hidden>
+    <header class="calendar-header">
+      <div class="logo-heart">💖</div>
+      <h1>365 raisons de t'aimer</h1>
+      <p id="calendar-subtitle" class="subtitle"></p>
+      <button id="logout-btn" class="btn btn-text">Se déconnecter</button>
+    </header>
+    <div id="calendar-message" class="calendar-message" hidden></div>
+    <nav id="month-tabs" class="month-tabs" aria-label="Navigation par mois"></nav>
+    <div id="calendar-grid" class="calendar-grid"></div>
+  </section>
+
+  <!-- ─── Modal raison du jour ─── -->
+  <div id="reason-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-day-title">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <button class="modal-close" aria-label="Fermer">&times;</button>
+      <div class="modal-heart">❤️</div>
+      <h3 id="modal-day-title"></h3>
+      <p id="modal-day-date" class="modal-date"></p>
+      <p id="modal-reason-text" class="modal-reason"></p>
+    </div>
+  </div>
+
+  <script src="reasons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

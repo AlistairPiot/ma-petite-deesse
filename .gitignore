@@ -1,0 +1,13 @@
+# Contenu des raisons (privé)
+reasons.js
+note.txt
+# OS
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
