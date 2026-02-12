@@ -1,5 +1,6 @@
 /* ============================================
    Mon Doudou — Application principale
+   Animations GSAP
    ============================================ */
 
 (function () {
@@ -14,16 +15,12 @@
         password: atob("amV0YWltZTIwMjY="),
     };
 
-    // Date de début (Jour 1) et nombre total de jours
     const START_DATE = "2026-02-14";
     const TOTAL_DAYS = 365;
-
-    // Score minimum pour réussir le quiz (sur 5)
     const MIN_SCORE = 4;
 
     // ────────────────────────────────────────────
     // QUESTIONS DU QUIZ
-    // Pour personnaliser : modifie les questions, choix et l'index de la bonne réponse (0-indexé)
     // ────────────────────────────────────────────
     const QUIZ_QUESTIONS = [
         {
@@ -76,6 +73,7 @@
     const loginScreen = $("#login-screen");
     const quizScreen = $("#quiz-screen");
     const calendarScreen = $("#calendar-screen");
+    const transitionOverlay = $("#transition-overlay");
 
     const loginForm = $("#login-form");
     const usernameInput = $("#username");
@@ -106,6 +104,7 @@
     const modalDayDate = $("#modal-day-date");
     const modalReasonText = $("#modal-reason-text");
     const modalContent = reasonModal.querySelector(".modal-content");
+    const modalHeart = reasonModal.querySelector(".modal-heart");
 
     // ────────────────────────────────────────────
     // ÉTAT
@@ -115,12 +114,17 @@
     let score = 0;
     let cachedMonths = null;
     let activeMonthIndex = 0;
+    let isTransitioning = false;
+
+    // ────────────────────────────────────────────
+    // GSAP DEFAULTS
+    // ────────────────────────────────────────────
+    gsap.defaults({ overwrite: "auto" });
 
     // ────────────────────────────────────────────
     // UTILITAIRES — DATE (timezone Europe/Paris)
     // ────────────────────────────────────────────
 
-    /** Obtenir la date et l'heure actuelles à Paris */
     function getNowParis() {
         const formatter = new Intl.DateTimeFormat("fr-FR", {
             timeZone: "Europe/Paris",
@@ -146,39 +150,32 @@
         };
     }
 
-    /** Raccourci : date à Paris au format YYYY-MM-DD */
     function getTodayParis() {
         return getNowParis().dateStr;
     }
 
-    /** Différence en jours entre deux dates YYYY-MM-DD */
     function diffDays(dateStr1, dateStr2) {
         const d1 = new Date(dateStr1 + "T00:00:00");
         const d2 = new Date(dateStr2 + "T00:00:00");
         return Math.floor((d1 - d2) / 86400000);
     }
 
-    /** Index du jour actuel (1-365 = jour actif, 0 = pas commencé, >365 = terminé) */
     function getTodayIndex() {
-        // Debug : ?day=140 dans l'URL pour simuler le jour 140
         var params = new URLSearchParams(window.location.search);
         var debugDay = parseInt(params.get("day"), 10);
         if (debugDay >= 0 && debugDay <= TOTAL_DAYS) return debugDay;
 
         const now = getNowParis();
-        // Le jour 1 (14 fév) se débloque à 16h, les autres à minuit
         if (now.dateStr === START_DATE && now.hour < 16) return 0;
         const diff = diffDays(now.dateStr, START_DATE);
         if (diff < 0) return 0;
         return diff + 1;
     }
 
-    /** Nombre de jours débloqués (clampé à TOTAL_DAYS) */
     function getUnlockedCount() {
         return Math.min(getTodayIndex(), TOTAL_DAYS);
     }
 
-    /** Date (objet Date) correspondant à un jour donné (1-365) */
     function getDateForDay(dayIndex) {
         const [y, m, d] = START_DATE.split("-").map(Number);
         const date = new Date(y, m - 1, d);
@@ -186,7 +183,6 @@
         return date;
     }
 
-    /** Formater une date en français lisible */
     function formatDateFR(date) {
         return date.toLocaleDateString("fr-FR", {
             day: "numeric",
@@ -216,17 +212,379 @@
     }
 
     // ────────────────────────────────────────────
+    // GSAP — ANIMATIONS D'ÉCRAN
+    // ────────────────────────────────────────────
+
+    /** Transition rideau entre deux écrans */
+    function wipeTransition(fromScreen, toScreen, setupFn, onRevealed) {
+        if (isTransitioning) return;
+        isTransitioning = true;
+
+        var tl = gsap.timeline({
+            onComplete: function () {
+                isTransitioning = false;
+            },
+        });
+
+        tl.set(transitionOverlay, {
+            display: "block",
+            scaleX: 0,
+            transformOrigin: "left center",
+        })
+            .to(transitionOverlay, {
+                scaleX: 1,
+                duration: 0.45,
+                ease: "power4.inOut",
+            })
+            .add(function () {
+                if (fromScreen) fromScreen.hidden = true;
+                toScreen.hidden = false;
+                if (setupFn) setupFn();
+            })
+            .set(transitionOverlay, { transformOrigin: "right center" })
+            .to(transitionOverlay, {
+                scaleX: 0,
+                duration: 0.45,
+                ease: "power4.inOut",
+            })
+            .add(function () {
+                if (onRevealed) onRevealed();
+            }, "-=0.25")
+            .set(transitionOverlay, { display: "none" });
+    }
+
+    /** Entrée animée — Login */
+    function animateLoginIn() {
+        var card = loginScreen.querySelector(".card");
+        var heart = card.querySelector(".logo-heart");
+        var h1 = card.querySelector("h1");
+        var subtitle = card.querySelector(".subtitle");
+        var formGroups = card.querySelectorAll(".form-group");
+        var btn = card.querySelector(".btn");
+        var errorText = card.querySelector(".error-text");
+
+        var tl = gsap.timeline();
+
+        tl.fromTo(
+            card,
+            { opacity: 0, y: 80, scale: 0.7, rotateX: 25 },
+            {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                rotateX: 0,
+                duration: 0.9,
+                ease: "back.out(1.4)",
+            },
+        );
+
+        tl.fromTo(
+            heart,
+            { opacity: 0, y: -60, scale: 0, rotation: -180 },
+            {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                rotation: 0,
+                duration: 0.8,
+                ease: "elastic.out(1, 0.5)",
+            },
+            "-=0.5",
+        );
+
+        tl.fromTo(
+            h1,
+            { opacity: 0, y: 25, letterSpacing: "15px" },
+            {
+                opacity: 1,
+                y: 0,
+                letterSpacing: "0px",
+                duration: 0.5,
+                ease: "power3.out",
+            },
+            "-=0.4",
+        );
+
+        tl.fromTo(
+            subtitle,
+            { opacity: 0, y: 15 },
+            { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+            "-=0.2",
+        );
+
+        formGroups.forEach(function (group, i) {
+            tl.fromTo(
+                group,
+                { opacity: 0, x: i % 2 === 0 ? -50 : 50, rotateY: i % 2 === 0 ? -15 : 15 },
+                {
+                    opacity: 1,
+                    x: 0,
+                    rotateY: 0,
+                    duration: 0.5,
+                    ease: "power3.out",
+                },
+                "-=0.2",
+            );
+        });
+
+        if (errorText) {
+            gsap.set(errorText, { opacity: 1 });
+        }
+
+        tl.fromTo(
+            btn,
+            { opacity: 0, y: 25, scale: 0.8 },
+            {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: 0.5,
+                ease: "back.out(2.5)",
+            },
+            "-=0.15",
+        );
+    }
+
+    /** Entrée animée — Quiz */
+    function animateQuizIn() {
+        var card = quizScreen.querySelector(".card");
+        var heart = card.querySelector(".logo-heart");
+        var h2 = card.querySelector("h2");
+        var subtitle = card.querySelector(".subtitle");
+
+        var tl = gsap.timeline();
+
+        tl.fromTo(
+            card,
+            { opacity: 0, scale: 0.3, rotateY: 120 },
+            {
+                opacity: 1,
+                scale: 1,
+                rotateY: 0,
+                duration: 1,
+                ease: "elastic.out(1, 0.6)",
+            },
+        );
+
+        tl.fromTo(
+            heart,
+            { opacity: 0, scale: 0 },
+            {
+                opacity: 1,
+                scale: 1,
+                duration: 0.6,
+                ease: "elastic.out(1, 0.4)",
+            },
+            "-=0.5",
+        );
+
+        tl.fromTo(
+            [h2, subtitle],
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, stagger: 0.1, duration: 0.4, ease: "power2.out" },
+            "-=0.3",
+        );
+
+        // Animer les éléments du quiz body
+        var questionElements = [quizQuestionNum, quizQuestionText];
+        tl.fromTo(
+            questionElements,
+            { opacity: 0, x: 40 },
+            { opacity: 1, x: 0, stagger: 0.08, duration: 0.4, ease: "power2.out" },
+            "-=0.15",
+        );
+
+        var choices = quizChoices.querySelectorAll(".quiz-choice");
+        if (choices.length > 0) {
+            tl.fromTo(
+                choices,
+                { opacity: 0, x: 50, scale: 0.85 },
+                {
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    stagger: 0.08,
+                    duration: 0.45,
+                    ease: "back.out(1.5)",
+                },
+                "-=0.15",
+            );
+        }
+
+        tl.fromTo(
+            quizNextBtn,
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.35 },
+            "-=0.1",
+        );
+    }
+
+    /** Entrée animée — Calendrier */
+    function animateCalendarIn() {
+        var header = calendarScreen.querySelector(".calendar-header");
+        var message = calendarMessage;
+
+        var tl = gsap.timeline();
+
+        // Header
+        if (header) {
+            var headerChildren = header.children;
+            tl.fromTo(
+                headerChildren,
+                { opacity: 0, y: -40 },
+                {
+                    opacity: 1,
+                    y: 0,
+                    stagger: 0.1,
+                    duration: 0.5,
+                    ease: "power3.out",
+                },
+            );
+        }
+
+        // Message (si pas encore commencé)
+        if (!message.hidden) {
+            tl.fromTo(
+                message,
+                { opacity: 0, scale: 0.8, y: 30 },
+                {
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                    duration: 0.6,
+                    ease: "back.out(1.4)",
+                },
+                "-=0.2",
+            );
+            return;
+        }
+
+        // Month tabs
+        var tabButtons = monthTabs.querySelectorAll(".month-tab");
+        if (tabButtons.length > 0) {
+            tl.fromTo(
+                tabButtons,
+                { opacity: 0, x: -30, scale: 0.7 },
+                {
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    stagger: 0.04,
+                    duration: 0.45,
+                    ease: "back.out(1.8)",
+                },
+                "-=0.2",
+            );
+        }
+
+        // Day cards cascade
+        animateDayCardsIn(0.15);
+    }
+
+    /** Cascade des cartes jour */
+    function animateDayCardsIn(delay) {
+        var cards = calendarGrid.querySelectorAll(".day-card");
+        if (cards.length === 0) return;
+
+        gsap.fromTo(
+            cards,
+            { opacity: 0, y: 60, scale: 0.5, rotateX: 30 },
+            {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                rotateX: 0,
+                stagger: {
+                    each: 0.03,
+                    from: "start",
+                    ease: "power1.in",
+                },
+                duration: 0.55,
+                ease: "back.out(1.3)",
+                delay: delay || 0,
+            },
+        );
+    }
+
+    /** Sparkles (particules) autour d'un élément */
+    function createSparkles(element) {
+        var rect = element.getBoundingClientRect();
+        var centerX = rect.left + rect.width / 2;
+        var centerY = rect.top + rect.height / 2;
+        var colors = [
+            "#be185d",
+            "#ec4899",
+            "#f9a8d4",
+            "#fbbf24",
+            "#f472b6",
+            "#a855f7",
+        ];
+
+        for (var i = 0; i < 24; i++) {
+            var sparkle = document.createElement("div");
+            sparkle.className = "sparkle";
+            sparkle.style.left = centerX + "px";
+            sparkle.style.top = centerY + "px";
+            sparkle.style.background =
+                colors[Math.floor(Math.random() * colors.length)];
+            document.body.appendChild(sparkle);
+
+            var angle = (Math.PI * 2 * i) / 24 + (Math.random() - 0.5) * 0.6;
+            var distance = 50 + Math.random() * 100;
+            var size = 4 + Math.random() * 8;
+
+            gsap.set(sparkle, { width: size, height: size, scale: 1 });
+
+            gsap.to(sparkle, {
+                x: Math.cos(angle) * distance,
+                y: Math.sin(angle) * distance,
+                opacity: 0,
+                scale: 0,
+                duration: 0.5 + Math.random() * 0.5,
+                ease: "power3.out",
+                onComplete: function () {
+                    this.targets()[0].remove();
+                },
+            });
+        }
+    }
+
+    // ────────────────────────────────────────────
     // NAVIGATION ENTRE ÉCRANS
     // ────────────────────────────────────────────
 
-    function showScreen(screen) {
-        [loginScreen, quizScreen, calendarScreen].forEach(function (s) {
-            s.hidden = true;
-        });
-        screen.hidden = false;
+    function showScreen(screen, setupFn) {
+        var screens = [loginScreen, quizScreen, calendarScreen];
+        var fromScreen = null;
+
+        for (var i = 0; i < screens.length; i++) {
+            if (!screens[i].hidden && screens[i] !== screen) {
+                fromScreen = screens[i];
+                break;
+            }
+        }
+
+        if (fromScreen) {
+            // Transition avec rideau
+            wipeTransition(fromScreen, screen, setupFn, function () {
+                animateScreenIn(screen);
+            });
+        } else {
+            // Premier affichage (pas de transition)
+            screens.forEach(function (s) {
+                s.hidden = s !== screen;
+            });
+            if (setupFn) setupFn();
+            animateScreenIn(screen);
+        }
     }
 
-    /** Le quiz est auto-validé à partir du 15 février 2026 (Paris) */
+    function animateScreenIn(screen) {
+        if (screen === loginScreen) animateLoginIn();
+        else if (screen === quizScreen) animateQuizIn();
+        else if (screen === calendarScreen) animateCalendarIn();
+    }
+
     function isQuizExpired() {
         var now = getTodayParis();
         return now >= "2026-02-15";
@@ -239,11 +597,9 @@
         if (!isLoggedIn) {
             showScreen(loginScreen);
         } else if (!quizPassed && !isQuizExpired()) {
-            showScreen(quizScreen);
-            initQuiz();
+            showScreen(quizScreen, initQuiz);
         } else {
-            showScreen(calendarScreen);
-            initCalendar();
+            showScreen(calendarScreen, initCalendar);
         }
     }
 
@@ -253,21 +609,64 @@
 
     function handleLogin(e) {
         e.preventDefault();
+        if (isTransitioning) return;
+
         var user = usernameInput.value.trim().toLowerCase();
         var pass = passwordInput.value;
 
         if (user === CREDENTIALS.username && pass === CREDENTIALS.password) {
             localStorage.setItem("loggedIn", "true");
             loginError.hidden = true;
-            navigateToCorrectScreen();
+
+            // Petite animation de succès avant transition
+            var card = loginScreen.querySelector(".card");
+            gsap.to(card, {
+                scale: 1.03,
+                boxShadow: "0 0 40px rgba(190, 24, 93, 0.3)",
+                duration: 0.25,
+                yoyo: true,
+                repeat: 1,
+                ease: "power2.inOut",
+                onComplete: function () {
+                    gsap.set(card, { clearProps: "scale,boxShadow" });
+                    navigateToCorrectScreen();
+                },
+            });
         } else {
             loginError.hidden = false;
+            // Shake animation
+            var tl = gsap.timeline();
+            tl.to(loginForm, {
+                x: -12,
+                duration: 0.06,
+                ease: "power2.inOut",
+            })
+                .to(loginForm, {
+                    x: 12,
+                    duration: 0.06,
+                    ease: "power2.inOut",
+                    repeat: 3,
+                    yoyo: true,
+                })
+                .to(loginForm, {
+                    x: 0,
+                    duration: 0.15,
+                    ease: "elastic.out(1, 0.3)",
+                });
+
+            gsap.fromTo(
+                loginError,
+                { opacity: 0, y: -10 },
+                { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
+            );
+
             passwordInput.value = "";
             passwordInput.focus();
         }
     }
 
     function handleLogout() {
+        if (isTransitioning) return;
         localStorage.removeItem("loggedIn");
         usernameInput.value = "";
         passwordInput.value = "";
@@ -286,6 +685,7 @@
         quizResult.hidden = true;
         quizBody.hidden = false;
         quizNextBtn.disabled = true;
+        gsap.set(quizProgressBar, { width: "0%" });
         renderQuestion();
     }
 
@@ -298,7 +698,13 @@
         quizQuestionNum.textContent =
             "Question " + (currentQuestion + 1) + "/" + total;
         quizQuestionText.textContent = q.question;
-        quizProgressBar.style.width = (currentQuestion / total) * 100 + "%";
+
+        // Barre de progression animée
+        gsap.to(quizProgressBar, {
+            width: (currentQuestion / total) * 100 + "%",
+            duration: 0.6,
+            ease: "power2.out",
+        });
 
         quizChoices.innerHTML = "";
         q.choices.forEach(function (choice, i) {
@@ -311,6 +717,42 @@
             });
             quizChoices.appendChild(btn);
         });
+
+        // Animer l'entrée des éléments
+        var tl = gsap.timeline();
+        tl.fromTo(
+            quizQuestionNum,
+            { opacity: 0, x: 35 },
+            { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" },
+        );
+        tl.fromTo(
+            quizQuestionText,
+            { opacity: 0, x: 35 },
+            { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" },
+            "-=0.15",
+        );
+
+        var choices = quizChoices.querySelectorAll(".quiz-choice");
+        tl.fromTo(
+            choices,
+            { opacity: 0, x: 50, scale: 0.85 },
+            {
+                opacity: 1,
+                x: 0,
+                scale: 1,
+                stagger: 0.08,
+                duration: 0.4,
+                ease: "back.out(1.5)",
+            },
+            "-=0.1",
+        );
+
+        tl.fromTo(
+            quizNextBtn,
+            { opacity: 0, y: 15 },
+            { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
+            "-=0.05",
+        );
     }
 
     function selectAnswer(index) {
@@ -319,7 +761,20 @@
         var buttons = quizChoices.querySelectorAll(".quiz-choice");
         buttons.forEach(function (btn, i) {
             btn.classList.toggle("selected", i === index);
+            if (i === index) {
+                gsap.fromTo(
+                    btn,
+                    { scale: 0.93 },
+                    { scale: 1, duration: 0.4, ease: "elastic.out(1, 0.4)" },
+                );
+            }
         });
+
+        gsap.fromTo(
+            quizNextBtn,
+            { scale: 0.9, opacity: 0.7 },
+            { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2.5)" },
+        );
     }
 
     function handleNextQuestion() {
@@ -330,50 +785,116 @@
         }
 
         currentQuestion++;
-        if (currentQuestion < QUIZ_QUESTIONS.length) {
-            renderQuestion();
-        } else {
-            showQuizResult();
-        }
+
+        // Animer la sortie de la question actuelle
+        var elements = [quizQuestionNum, quizQuestionText, quizChoices, quizNextBtn];
+        gsap.to(elements, {
+            opacity: 0,
+            x: -50,
+            stagger: 0.04,
+            duration: 0.25,
+            ease: "power3.in",
+            onComplete: function () {
+                gsap.set(elements, { clearProps: "all" });
+                if (currentQuestion < QUIZ_QUESTIONS.length) {
+                    renderQuestion();
+                } else {
+                    showQuizResult();
+                }
+            },
+        });
     }
 
     function showQuizResult() {
-        quizBody.hidden = true;
-        quizResult.hidden = false;
-        quizProgressBar.style.width = "100%";
         var total = QUIZ_QUESTIONS.length;
 
-        if (score >= MIN_SCORE) {
-            quizResultText.innerHTML =
-                "Bravo mon amour ! 🎉<br>" +
-                "Tu as obtenu <strong>" +
-                score +
-                "/" +
-                total +
-                "</strong> !<br>" +
-                "Ton calendrier t'attend...";
-            quizRetryBtn.hidden = true;
-            quizCalendarBtn.hidden = false;
-            localStorage.setItem("quizPassed", "true");
-            showHearts();
-        } else {
-            quizResultText.innerHTML =
-                "Tu as obtenu <strong>" +
-                score +
-                "/" +
-                total +
-                "</strong>.<br>" +
-                "Il faut au moins " +
-                MIN_SCORE +
-                " bonnes réponses !<br>" +
-                "Réessaie, je sais que tu peux le faire ! ❤️";
-            quizRetryBtn.hidden = false;
-            quizCalendarBtn.hidden = true;
-        }
+        gsap.to(quizProgressBar, {
+            width: "100%",
+            duration: 0.5,
+            ease: "power2.out",
+        });
+
+        gsap.to(quizBody, {
+            opacity: 0,
+            y: -25,
+            scale: 0.95,
+            duration: 0.35,
+            ease: "power3.in",
+            onComplete: function () {
+                quizBody.hidden = true;
+                gsap.set(quizBody, { clearProps: "all" });
+
+                if (score >= MIN_SCORE) {
+                    quizResultText.innerHTML =
+                        "Bravo mon amour ! 🎉<br>" +
+                        "Tu as obtenu <strong>" +
+                        score +
+                        "/" +
+                        total +
+                        "</strong> !<br>" +
+                        "Ton calendrier t'attend...";
+                    quizRetryBtn.hidden = true;
+                    quizCalendarBtn.hidden = false;
+                    localStorage.setItem("quizPassed", "true");
+                } else {
+                    quizResultText.innerHTML =
+                        "Tu as obtenu <strong>" +
+                        score +
+                        "/" +
+                        total +
+                        "</strong>.<br>" +
+                        "Il faut au moins " +
+                        MIN_SCORE +
+                        " bonnes réponses !<br>" +
+                        "Réessaie, je sais que tu peux le faire ! ❤️";
+                    quizRetryBtn.hidden = false;
+                    quizCalendarBtn.hidden = true;
+                }
+
+                quizResult.hidden = false;
+
+                var tl = gsap.timeline();
+
+                tl.fromTo(
+                    quizResultText,
+                    { opacity: 0, scale: 0.4, y: 40 },
+                    {
+                        opacity: 1,
+                        scale: 1,
+                        y: 0,
+                        duration: 0.7,
+                        ease: "elastic.out(1, 0.5)",
+                    },
+                );
+
+                if (score >= MIN_SCORE) {
+                    tl.fromTo(
+                        quizCalendarBtn,
+                        { opacity: 0, y: 25, scale: 0.7 },
+                        {
+                            opacity: 1,
+                            y: 0,
+                            scale: 1,
+                            duration: 0.5,
+                            ease: "back.out(2.5)",
+                        },
+                        "-=0.25",
+                    );
+                    showHearts();
+                } else {
+                    tl.fromTo(
+                        quizRetryBtn,
+                        { opacity: 0, y: 20 },
+                        { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+                        "-=0.2",
+                    );
+                }
+            },
+        });
     }
 
     // ────────────────────────────────────────────
-    // ANIMATION CŒURS
+    // ANIMATION CŒURS (GSAP)
     // ────────────────────────────────────────────
 
     function showHearts() {
@@ -381,22 +902,55 @@
         container.className = "hearts-container";
         var hearts = ["❤️", "💕", "💖", "💗", "💝", "💘"];
 
-        for (var i = 0; i < 35; i++) {
-            var heart = document.createElement("span");
-            heart.className = "floating-heart";
-            heart.textContent =
-                hearts[Math.floor(Math.random() * hearts.length)];
-            heart.style.left = Math.random() * 100 + "%";
-            heart.style.animationDelay = Math.random() * 2.5 + "s";
-            heart.style.animationDuration = 2.5 + Math.random() * 3 + "s";
-            heart.style.fontSize = 16 + Math.random() * 24 + "px";
-            container.appendChild(heart);
+        document.body.appendChild(container);
+
+        for (var i = 0; i < 45; i++) {
+            (function () {
+                var heart = document.createElement("span");
+                heart.className = "floating-heart";
+                heart.textContent =
+                    hearts[Math.floor(Math.random() * hearts.length)];
+                heart.style.left = Math.random() * 100 + "%";
+                heart.style.fontSize = 16 + Math.random() * 28 + "px";
+                container.appendChild(heart);
+
+                var duration = 2.5 + Math.random() * 3;
+                var delay = Math.random() * 2.5;
+                var xDrift = (Math.random() - 0.5) * 160;
+
+                gsap.timeline({ delay: delay })
+                    .set(heart, { opacity: 1, scale: 0 })
+                    .to(heart, {
+                        scale: 1,
+                        duration: 0.3,
+                        ease: "back.out(3)",
+                    })
+                    .to(
+                        heart,
+                        {
+                            y: -(window.innerHeight + 120),
+                            x: xDrift,
+                            rotation: (Math.random() - 0.5) * 360,
+                            duration: duration,
+                            ease: "power1.out",
+                        },
+                        "-=0.15",
+                    )
+                    .to(
+                        heart,
+                        {
+                            opacity: 0,
+                            scale: 0.3,
+                            duration: duration * 0.35,
+                        },
+                        "-=" + (duration * 0.35).toFixed(2),
+                    );
+            })();
         }
 
-        document.body.appendChild(container);
         setTimeout(function () {
             container.remove();
-        }, 6000);
+        }, 8000);
     }
 
     // ────────────────────────────────────────────
@@ -407,7 +961,6 @@
         var todayIndex = getTodayIndex();
         var unlockedUpTo = getUnlockedCount();
 
-        // Pas encore commencé
         if (todayIndex === 0) {
             calendarMessage.hidden = false;
             calendarMessage.innerHTML =
@@ -432,7 +985,6 @@
                 "Jour " + todayIndex + " sur " + TOTAL_DAYS;
         }
 
-        // Construire les mois (cache)
         if (!cachedMonths) {
             cachedMonths = buildMonths();
         }
@@ -442,7 +994,6 @@
         selectMonth(currentMonthIdx, todayIndex, unlockedUpTo);
     }
 
-    /** Construire la structure mois → jours */
     function buildMonths() {
         var months = [];
         var current = null;
@@ -476,7 +1027,6 @@
         return months;
     }
 
-    /** Trouver l'index du mois qui contient le jour actuel */
     function findCurrentMonth(months, todayIndex) {
         if (todayIndex <= 0) return 0;
 
@@ -494,7 +1044,6 @@
         return months.length - 1;
     }
 
-    /** Afficher les onglets de mois */
     function renderMonthTabs(months, todayIndex, unlockedUpTo) {
         monthTabs.innerHTML = "";
         months.forEach(function (month, i) {
@@ -509,18 +1058,15 @@
         });
     }
 
-    /** Sélectionner un mois et afficher ses jours */
     function selectMonth(index, todayIndex, unlockedUpTo) {
         activeMonthIndex = index;
         var month = cachedMonths[index];
 
-        // Mettre à jour l'onglet actif
         var tabs = monthTabs.querySelectorAll(".month-tab");
         tabs.forEach(function (tab, i) {
             tab.classList.toggle("active", i === index);
         });
 
-        // Scroll l'onglet en vue
         if (tabs[index]) {
             tabs[index].scrollIntoView({
                 behavior: "smooth",
@@ -529,10 +1075,27 @@
             });
         }
 
-        renderDays(month.days, todayIndex, unlockedUpTo);
+        // Animer la sortie des cartes existantes puis afficher les nouvelles
+        var currentCards = calendarGrid.querySelectorAll(".day-card");
+        if (currentCards.length > 0) {
+            gsap.to(currentCards, {
+                opacity: 0,
+                y: -25,
+                scale: 0.75,
+                stagger: 0.015,
+                duration: 0.2,
+                ease: "power2.in",
+                onComplete: function () {
+                    renderDays(month.days, todayIndex, unlockedUpTo);
+                    animateDayCardsIn(0);
+                },
+            });
+        } else {
+            renderDays(month.days, todayIndex, unlockedUpTo);
+            animateDayCardsIn(0);
+        }
     }
 
-    /** Afficher la grille de jours pour un mois donné */
     function renderDays(days, todayIndex, unlockedUpTo) {
         var openedDays = getOpenedDays();
         calendarGrid.innerHTML = "";
@@ -573,7 +1136,9 @@
                 shortMonth +
                 "</span>" +
                 (isLocked ? '<span class="day-lock">🔒</span>' : "") +
-                (isToday ? '<span class="day-badge">Aujourd\'hui</span>' : "") +
+                (isToday
+                    ? '<span class="day-badge">Aujourd\'hui</span>'
+                    : "") +
                 (isOpened && !isToday
                     ? '<span class="day-check">✓</span>'
                     : "");
@@ -595,10 +1160,8 @@
         });
     }
 
-    /** Gérer le clic sur un jour */
     function handleDayClick(day, todayIndex, unlockedUpTo) {
         if (day.index > unlockedUpTo) {
-            // Jour verrouillé
             var unlockDate = getDateForDay(day.index);
             openModal(
                 "Jour " + day.index,
@@ -609,7 +1172,6 @@
             return;
         }
 
-        // Jour accessible
         markDayOpened(day.index);
         openModal(
             "Jour " + day.index,
@@ -618,13 +1180,12 @@
             false,
         );
 
-        // Mettre à jour la grille (état "opened")
         var month = cachedMonths[activeMonthIndex];
         renderDays(month.days, todayIndex, unlockedUpTo);
     }
 
     // ────────────────────────────────────────────
-    // MODAL
+    // MODAL (GSAP)
     // ────────────────────────────────────────────
 
     function openModal(title, date, text, isLocked) {
@@ -633,21 +1194,144 @@
         modalReasonText.textContent = text;
         modalContent.classList.toggle("locked", isLocked);
 
+        // Préparer les états initiaux avant d'afficher
+        gsap.set(modalOverlay, { opacity: 0 });
+        gsap.set(modalContent, {
+            opacity: 0,
+            scale: 0.2,
+            y: 100,
+            rotateX: 35,
+        });
+        gsap.set(modalHeart, { scale: 0, rotation: -270 });
+        gsap.set([modalDayTitle, modalDayDate, modalReasonText], {
+            opacity: 0,
+            y: 20,
+        });
+        gsap.set(modalClose, { opacity: 0, scale: 0 });
+
         reasonModal.hidden = false;
-        // Force reflow pour l'animation
-        void reasonModal.offsetWidth;
-        reasonModal.classList.add("visible");
+        document.body.style.overflow = "hidden";
+
+        var tl = gsap.timeline();
+
+        // Overlay
+        tl.to(modalOverlay, {
+            opacity: 1,
+            duration: 0.35,
+            ease: "power2.out",
+        });
+
+        // Contenu — entrée élastique 3D
+        tl.to(
+            modalContent,
+            {
+                opacity: 1,
+                scale: 1,
+                y: 0,
+                rotateX: 0,
+                duration: 0.8,
+                ease: "elastic.out(1, 0.55)",
+            },
+            "-=0.2",
+        );
+
+        // Cœur qui tourne et apparait
+        tl.to(
+            modalHeart,
+            {
+                scale: 1,
+                rotation: 0,
+                duration: 0.7,
+                ease: "elastic.out(1, 0.4)",
+            },
+            "-=0.5",
+        );
+
+        // Titre et date
+        tl.to(
+            [modalDayTitle, modalDayDate],
+            {
+                opacity: 1,
+                y: 0,
+                stagger: 0.08,
+                duration: 0.35,
+                ease: "power2.out",
+            },
+            "-=0.35",
+        );
+
+        // Texte de la raison
+        tl.to(
+            modalReasonText,
+            {
+                opacity: 1,
+                y: 0,
+                duration: 0.45,
+                ease: "power2.out",
+            },
+            "-=0.15",
+        );
+
+        // Bouton fermer
+        tl.to(
+            modalClose,
+            {
+                opacity: 1,
+                scale: 1,
+                duration: 0.3,
+                ease: "back.out(3)",
+            },
+            "-=0.3",
+        );
+
+        // Sparkles si jour débloqué
+        if (!isLocked) {
+            tl.add(function () {
+                createSparkles(modalContent);
+            }, "-=0.45");
+        }
 
         modalClose.focus();
-        document.body.style.overflow = "hidden";
     }
 
     function closeModal() {
-        reasonModal.classList.remove("visible");
-        document.body.style.overflow = "";
-        setTimeout(function () {
+        var tl = gsap.timeline();
+
+        tl.to(modalContent, {
+            opacity: 0,
+            scale: 0.7,
+            y: 40,
+            rotateX: -15,
+            duration: 0.3,
+            ease: "power3.in",
+        });
+
+        tl.to(
+            modalOverlay,
+            {
+                opacity: 0,
+                duration: 0.25,
+                ease: "power2.in",
+            },
+            "-=0.15",
+        );
+
+        tl.add(function () {
             reasonModal.hidden = true;
-        }, 300);
+            document.body.style.overflow = "";
+            gsap.set(
+                [
+                    modalContent,
+                    modalOverlay,
+                    modalHeart,
+                    modalDayTitle,
+                    modalDayDate,
+                    modalReasonText,
+                    modalClose,
+                ],
+                { clearProps: "all" },
+            );
+        });
     }
 
     // ────────────────────────────────────────────
@@ -690,8 +1374,8 @@
         quizNextBtn.addEventListener("click", handleNextQuestion);
         quizRetryBtn.addEventListener("click", initQuiz);
         quizCalendarBtn.addEventListener("click", function () {
-            showScreen(calendarScreen);
-            initCalendar();
+            if (isTransitioning) return;
+            showScreen(calendarScreen, initCalendar);
         });
 
         modalClose.addEventListener("click", closeModal);

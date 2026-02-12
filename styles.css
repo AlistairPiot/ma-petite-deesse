@@ -60,7 +60,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  animation: fadeIn 0.4s ease;
+  perspective: 1200px;
 }
 
 #calendar-screen {
@@ -69,9 +69,16 @@ body {
   padding-bottom: 3rem;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ─── Transition overlay ─── */
+.transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: linear-gradient(135deg, #be185d 0%, #ec4899 50%, #f9a8d4 100%);
+  transform: scaleX(0);
+  transform-origin: left center;
+  display: none;
+  pointer-events: none;
 }
 
 /* ─── Logo cœur ─── */
@@ -98,6 +105,7 @@ body {
   width: 100%;
   max-width: 440px;
   text-align: center;
+  transform-style: preserve-3d;
 }
 
 .card h1, .card h2 {
@@ -219,7 +227,6 @@ body {
   width: 0%;
   background: var(--color-primary);
   border-radius: 2px;
-  transition: width 0.4s ease;
 }
 
 .quiz-question-number {
@@ -417,6 +424,7 @@ body {
   min-height: 75px;
   font-family: var(--font);
   box-shadow: var(--shadow-sm);
+  will-change: transform;
 }
 
 .day-number {
@@ -509,12 +517,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.modal.visible {
-  opacity: 1;
+  perspective: 1200px;
 }
 
 .modal-overlay {
@@ -534,12 +537,7 @@ body {
   max-width: 420px;
   width: 100%;
   text-align: center;
-  transform: scale(0.92) translateY(15px);
-  transition: transform 0.3s ease;
-}
-
-.modal.visible .modal-content {
-  transform: scale(1) translateY(0);
+  transform-style: preserve-3d;
 }
 
 .modal-close {
@@ -598,6 +596,14 @@ body {
   font-style: normal;
 }
 
+/* ─── Sparkles ─── */
+.sparkle {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 300;
+}
+
 /* ─── Animation cœurs flottants ─── */
 .hearts-container {
   position: fixed;
@@ -610,22 +616,7 @@ body {
 .floating-heart {
   position: absolute;
   bottom: -60px;
-  animation: floatUp linear forwards;
   opacity: 0;
-}
-
-@keyframes floatUp {
-  0% {
-    transform: translateY(0) rotate(0deg) scale(1);
-    opacity: 1;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-110vh) rotate(360deg) scale(0.5);
-    opacity: 0;
-  }
 }
 
 /* ─── Responsive ─── */
