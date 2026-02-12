@@ -44,7 +44,7 @@
             correct: 3,
         },
         {
-            question: "On va faire quoi se soir ?",
+            question: "On va faire quoi ce soir ?",
             choices: [
                 "un TakenooooKOOO 😏",
                 "Lire un livre 📕",
@@ -84,12 +84,13 @@
     const quizQuestionNum = $("#quiz-question-number");
     const quizQuestionText = $("#quiz-question-text");
     const quizChoices = $("#quiz-choices");
-    const quizNextBtn = $("#quiz-next-btn");
     const quizBody = $("#quiz-body");
     const quizResult = $("#quiz-result");
     const quizResultText = $("#quiz-result-text");
     const quizRetryBtn = $("#quiz-retry-btn");
     const quizCalendarBtn = $("#quiz-calendar-btn");
+    const quizScoreTrack = $("#quiz-score-track");
+    const quizRecap = $("#quiz-recap");
 
     const monthTabs = $("#month-tabs");
     const calendarGrid = $("#calendar-grid");
@@ -110,8 +111,9 @@
     // ÉTAT
     // ────────────────────────────────────────────
     let currentQuestion = 0;
-    let selectedAnswer = -1;
     let score = 0;
+    let userAnswers = [];
+    let isAnswerLocked = false;
     let cachedMonths = null;
     let activeMonthIndex = 0;
     let isTransitioning = false;
@@ -315,7 +317,11 @@
         formGroups.forEach(function (group, i) {
             tl.fromTo(
                 group,
-                { opacity: 0, x: i % 2 === 0 ? -50 : 50, rotateY: i % 2 === 0 ? -15 : 15 },
+                {
+                    opacity: 0,
+                    x: i % 2 === 0 ? -50 : 50,
+                    rotateY: i % 2 === 0 ? -15 : 15,
+                },
                 {
                     opacity: 1,
                     x: 0,
@@ -381,16 +387,46 @@
         tl.fromTo(
             [h2, subtitle],
             { opacity: 0, y: 20 },
-            { opacity: 1, y: 0, stagger: 0.1, duration: 0.4, ease: "power2.out" },
+            {
+                opacity: 1,
+                y: 0,
+                stagger: 0.1,
+                duration: 0.4,
+                ease: "power2.out",
+            },
             "-=0.3",
         );
 
-        // Animer les éléments du quiz body
+        // Score track hearts
+        var scoreHearts = quizScoreTrack.querySelectorAll(".score-heart");
+        if (scoreHearts.length > 0) {
+            tl.fromTo(
+                scoreHearts,
+                { opacity: 0, scale: 0, y: 10 },
+                {
+                    opacity: 1,
+                    scale: 1,
+                    y: 0,
+                    stagger: 0.08,
+                    duration: 0.4,
+                    ease: "elastic.out(1, 0.5)",
+                },
+                "-=0.2",
+            );
+        }
+
+        // Question elements
         var questionElements = [quizQuestionNum, quizQuestionText];
         tl.fromTo(
             questionElements,
             { opacity: 0, x: 40 },
-            { opacity: 1, x: 0, stagger: 0.08, duration: 0.4, ease: "power2.out" },
+            {
+                opacity: 1,
+                x: 0,
+                stagger: 0.08,
+                duration: 0.4,
+                ease: "power2.out",
+            },
             "-=0.15",
         );
 
@@ -410,13 +446,6 @@
                 "-=0.15",
             );
         }
-
-        tl.fromTo(
-            quizNextBtn,
-            { opacity: 0, y: 20 },
-            { opacity: 1, y: 0, duration: 0.35 },
-            "-=0.1",
-        );
     }
 
     /** Entrée animée — Calendrier */
@@ -426,7 +455,6 @@
 
         var tl = gsap.timeline();
 
-        // Header
         if (header) {
             var headerChildren = header.children;
             tl.fromTo(
@@ -442,7 +470,6 @@
             );
         }
 
-        // Message (si pas encore commencé)
         if (!message.hidden) {
             tl.fromTo(
                 message,
@@ -459,7 +486,6 @@
             return;
         }
 
-        // Month tabs
         var tabButtons = monthTabs.querySelectorAll(".month-tab");
         if (tabButtons.length > 0) {
             tl.fromTo(
@@ -477,7 +503,6 @@
             );
         }
 
-        // Day cards cascade
         animateDayCardsIn(0.15);
     }
 
@@ -549,6 +574,67 @@
         }
     }
 
+    /** Confetti (pluie de confettis colorés) */
+    function showConfetti() {
+        var colors = [
+            "#be185d",
+            "#ec4899",
+            "#f9a8d4",
+            "#fbbf24",
+            "#a855f7",
+            "#06b6d4",
+            "#10b981",
+            "#f43f5e",
+        ];
+        var container = document.createElement("div");
+        container.className = "confetti-container";
+        document.body.appendChild(container);
+
+        for (var i = 0; i < 100; i++) {
+            (function () {
+                var confetti = document.createElement("div");
+                var w = 6 + Math.random() * 8;
+                var isCircle = Math.random() > 0.5;
+                var h = isCircle ? w : w * 2.5;
+                confetti.style.cssText =
+                    "position:absolute;top:-20px;pointer-events:none;" +
+                    "width:" +
+                    w +
+                    "px;height:" +
+                    h +
+                    "px;" +
+                    "background:" +
+                    colors[Math.floor(Math.random() * colors.length)] +
+                    ";" +
+                    "border-radius:" +
+                    (isCircle ? "50%" : "2px") +
+                    ";" +
+                    "left:" +
+                    Math.random() * 100 +
+                    "%;";
+                container.appendChild(confetti);
+
+                gsap.to(confetti, {
+                    y: window.innerHeight + 50,
+                    x: (Math.random() - 0.5) * 250,
+                    rotation: (Math.random() - 0.5) * 720,
+                    duration: 1.5 + Math.random() * 2.5,
+                    delay: Math.random() * 1,
+                    ease: "power1.in",
+                });
+                gsap.to(confetti, {
+                    opacity: 0,
+                    duration: 0.5,
+                    delay: 2 + Math.random() * 1.5,
+                });
+            })();
+        }
+
+        setTimeout(function () {
+            container.remove();
+        }, 5000);
+    }
+
     // ────────────────────────────────────────────
     // NAVIGATION ENTRE ÉCRANS
     // ────────────────────────────────────────────
@@ -565,12 +651,10 @@
         }
 
         if (fromScreen) {
-            // Transition avec rideau
             wipeTransition(fromScreen, screen, setupFn, function () {
                 animateScreenIn(screen);
             });
         } else {
-            // Premier affichage (pas de transition)
             screens.forEach(function (s) {
                 s.hidden = s !== screen;
             });
@@ -618,7 +702,6 @@
             localStorage.setItem("loggedIn", "true");
             loginError.hidden = true;
 
-            // Petite animation de succès avant transition
             var card = loginScreen.querySelector(".card");
             gsap.to(card, {
                 scale: 1.03,
@@ -634,7 +717,6 @@
             });
         } else {
             loginError.hidden = false;
-            // Shake animation
             var tl = gsap.timeline();
             tl.to(loginForm, {
                 x: -12,
@@ -675,31 +757,66 @@
     }
 
     // ────────────────────────────────────────────
-    // QUIZ
+    // QUIZ — SCORE TRACK
+    // ────────────────────────────────────────────
+
+    function initScoreTrack() {
+        quizScoreTrack.innerHTML = "";
+        for (var i = 0; i < QUIZ_QUESTIONS.length; i++) {
+            var heart = document.createElement("span");
+            heart.className = "score-heart";
+            heart.textContent = "🤍";
+            quizScoreTrack.appendChild(heart);
+        }
+    }
+
+    function fillScoreHeart(index) {
+        var hearts = quizScoreTrack.querySelectorAll(".score-heart");
+        if (!hearts[index]) return;
+        hearts[index].textContent = "❤️";
+        gsap.fromTo(
+            hearts[index],
+            { scale: 0.2 },
+            { scale: 1, duration: 0.6, ease: "elastic.out(1, 0.3)" },
+        );
+    }
+
+    function breakScoreHeart(index) {
+        var hearts = quizScoreTrack.querySelectorAll(".score-heart");
+        if (!hearts[index]) return;
+        hearts[index].textContent = "💔";
+        gsap.fromTo(
+            hearts[index],
+            { rotation: -25, scale: 1.4 },
+            { rotation: 0, scale: 1, duration: 0.5, ease: "power2.out" },
+        );
+    }
+
+    // ────────────────────────────────────────────
+    // QUIZ — LOGIQUE
     // ────────────────────────────────────────────
 
     function initQuiz() {
         currentQuestion = 0;
-        selectedAnswer = -1;
         score = 0;
+        userAnswers = [];
+        isAnswerLocked = false;
         quizResult.hidden = true;
         quizBody.hidden = false;
-        quizNextBtn.disabled = true;
         gsap.set(quizProgressBar, { width: "0%" });
+        initScoreTrack();
         renderQuestion();
     }
 
     function renderQuestion() {
         var q = QUIZ_QUESTIONS[currentQuestion];
         var total = QUIZ_QUESTIONS.length;
-        selectedAnswer = -1;
-        quizNextBtn.disabled = true;
+        isAnswerLocked = false;
 
         quizQuestionNum.textContent =
             "Question " + (currentQuestion + 1) + "/" + total;
         quizQuestionText.textContent = q.question;
 
-        // Barre de progression animée
         gsap.to(quizProgressBar, {
             width: (currentQuestion / total) * 100 + "%",
             duration: 0.6,
@@ -713,7 +830,7 @@
             btn.type = "button";
             btn.textContent = choice;
             btn.addEventListener("click", function () {
-                selectAnswer(i);
+                handleAnswer(i);
             });
             quizChoices.appendChild(btn);
         });
@@ -746,67 +863,112 @@
             },
             "-=0.1",
         );
-
-        tl.fromTo(
-            quizNextBtn,
-            { opacity: 0, y: 15 },
-            { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
-            "-=0.05",
-        );
     }
 
-    function selectAnswer(index) {
-        selectedAnswer = index;
-        quizNextBtn.disabled = false;
+    /** Gère le clic sur une réponse — feedback immédiat + auto-avancement */
+    function handleAnswer(index) {
+        if (isAnswerLocked) return;
+        isAnswerLocked = true;
+
+        var q = QUIZ_QUESTIONS[currentQuestion];
+        var isCorrect = index === q.correct;
+        userAnswers.push(index);
+
         var buttons = quizChoices.querySelectorAll(".quiz-choice");
-        buttons.forEach(function (btn, i) {
-            btn.classList.toggle("selected", i === index);
-            if (i === index) {
-                gsap.fromTo(
-                    btn,
-                    { scale: 0.93 },
-                    { scale: 1, duration: 0.4, ease: "elastic.out(1, 0.4)" },
-                );
-            }
+
+        // Désactiver tous les boutons
+        buttons.forEach(function (btn) {
+            btn.style.pointerEvents = "none";
         });
 
-        gsap.fromTo(
-            quizNextBtn,
-            { scale: 0.9, opacity: 0.7 },
-            { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2.5)" },
-        );
-    }
+        // Toujours montrer la bonne réponse
+        buttons[q.correct].classList.add("correct");
 
-    function handleNextQuestion() {
-        if (selectedAnswer === -1) return;
-
-        if (selectedAnswer === QUIZ_QUESTIONS[currentQuestion].correct) {
+        if (isCorrect) {
             score++;
+            fillScoreHeart(currentQuestion);
+
+            // Sparkles + glow sur la bonne réponse
+            createSparkles(buttons[index]);
+            gsap.fromTo(
+                buttons[index],
+                { boxShadow: "0 0 0px rgba(5, 150, 105, 0)" },
+                {
+                    boxShadow: "0 0 30px rgba(5, 150, 105, 0.5)",
+                    duration: 0.3,
+                    yoyo: true,
+                    repeat: 1,
+                },
+            );
+        } else {
+            // Marquer la mauvaise réponse
+            buttons[index].classList.add("wrong");
+            breakScoreHeart(currentQuestion);
+
+            // Shake la mauvaise réponse
+            gsap.to(buttons[index], {
+                x: -10,
+                duration: 0.06,
+                repeat: 5,
+                yoyo: true,
+                ease: "power2.inOut",
+                onComplete: function () {
+                    gsap.set(buttons[index], { x: 0 });
+                },
+            });
+
+            // Pulse la bonne réponse pour attirer l'attention
+            gsap.fromTo(
+                buttons[q.correct],
+                { scale: 1 },
+                {
+                    scale: 1.04,
+                    duration: 0.3,
+                    yoyo: true,
+                    repeat: 2,
+                    ease: "power2.inOut",
+                },
+            );
         }
 
         currentQuestion++;
 
-        // Animer la sortie de la question actuelle
-        var elements = [quizQuestionNum, quizQuestionText, quizChoices, quizNextBtn];
+        // Auto-avancement
+        var isLast = currentQuestion >= QUIZ_QUESTIONS.length;
+        var advanceDelay = isLast ? 2000 : 1500;
+
+        setTimeout(function () {
+            if (isLast) {
+                showQuizResult();
+            } else {
+                transitionToNextQuestion();
+            }
+        }, advanceDelay);
+    }
+
+    /** Transition glissée entre deux questions */
+    function transitionToNextQuestion() {
+        var elements = [quizQuestionNum, quizQuestionText, quizChoices];
         gsap.to(elements, {
             opacity: 0,
-            x: -50,
-            stagger: 0.04,
-            duration: 0.25,
+            x: -60,
+            stagger: 0.05,
+            duration: 0.3,
             ease: "power3.in",
             onComplete: function () {
                 gsap.set(elements, { clearProps: "all" });
-                if (currentQuestion < QUIZ_QUESTIONS.length) {
-                    renderQuestion();
-                } else {
-                    showQuizResult();
-                }
+                renderQuestion();
             },
         });
     }
 
+    // ────────────────────────────────────────────
+    // QUIZ — RÉSULTAT SPECTACULAIRE
+    // ────────────────────────────────────────────
+
     function showQuizResult() {
         var total = QUIZ_QUESTIONS.length;
+        var passed = score >= MIN_SCORE;
 
         gsap.to(quizProgressBar, {
             width: "100%",
@@ -814,82 +976,181 @@
             ease: "power2.out",
         });
 
-        gsap.to(quizBody, {
+        var card = quizScreen.querySelector(".card");
+        var tl = gsap.timeline();
+
+        // Phase 1 : Quiz body disparait
+        tl.to(quizBody, {
             opacity: 0,
-            y: -25,
-            scale: 0.95,
-            duration: 0.35,
+            scale: 0.85,
+            duration: 0.4,
             ease: "power3.in",
-            onComplete: function () {
-                quizBody.hidden = true;
-                gsap.set(quizBody, { clearProps: "all" });
+        });
 
-                if (score >= MIN_SCORE) {
-                    quizResultText.innerHTML =
-                        "Bravo mon amour ! 🎉<br>" +
-                        "Tu as obtenu <strong>" +
-                        score +
-                        "/" +
-                        total +
-                        "</strong> !<br>" +
-                        "Ton calendrier t'attend...";
-                    quizRetryBtn.hidden = true;
-                    quizCalendarBtn.hidden = false;
-                    localStorage.setItem("quizPassed", "true");
-                } else {
-                    quizResultText.innerHTML =
-                        "Tu as obtenu <strong>" +
-                        score +
-                        "/" +
-                        total +
-                        "</strong>.<br>" +
-                        "Il faut au moins " +
-                        MIN_SCORE +
-                        " bonnes réponses !<br>" +
-                        "Réessaie, je sais que tu peux le faire ! ❤️";
-                    quizRetryBtn.hidden = false;
-                    quizCalendarBtn.hidden = true;
-                }
+        // Phase 2 : Card flash lumineux
+        tl.to(card, {
+            boxShadow: passed
+                ? "0 0 80px rgba(190, 24, 93, 0.5), 0 0 160px rgba(236, 72, 153, 0.2)"
+                : "0 0 60px rgba(220, 38, 38, 0.35)",
+            duration: 0.25,
+            yoyo: true,
+            repeat: 2,
+            ease: "power2.inOut",
+        });
 
-                quizResult.hidden = false;
+        // Phase 3 : Préparer le contenu
+        tl.add(function () {
+            quizBody.hidden = true;
+            gsap.set(quizBody, { clearProps: "all" });
+            buildQuizResult(total, passed);
+            quizResult.hidden = false;
+        });
 
-                var tl = gsap.timeline();
+        // Phase 4 : Score hearts wave
+        tl.add(function () {
+            var hearts = quizScoreTrack.querySelectorAll(".score-heart");
+            gsap.fromTo(
+                hearts,
+                { scale: 0.5, y: 5 },
+                {
+                    scale: 1,
+                    y: 0,
+                    stagger: 0.1,
+                    duration: 0.5,
+                    ease: "elastic.out(1, 0.4)",
+                },
+            );
+        });
 
-                tl.fromTo(
-                    quizResultText,
-                    { opacity: 0, scale: 0.4, y: 40 },
-                    {
-                        opacity: 1,
-                        scale: 1,
-                        y: 0,
-                        duration: 0.7,
-                        ease: "elastic.out(1, 0.5)",
-                    },
-                );
-
-                if (score >= MIN_SCORE) {
-                    tl.fromTo(
-                        quizCalendarBtn,
-                        { opacity: 0, y: 25, scale: 0.7 },
-                        {
-                            opacity: 1,
-                            y: 0,
-                            scale: 1,
-                            duration: 0.5,
-                            ease: "back.out(2.5)",
-                        },
-                        "-=0.25",
-                    );
-                    showHearts();
-                } else {
-                    tl.fromTo(
-                        quizRetryBtn,
-                        { opacity: 0, y: 20 },
-                        { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
-                        "-=0.2",
-                    );
-                }
+        // Phase 5 : Texte résultat — entrée dramatique
+        tl.fromTo(
+            quizResultText,
+            { opacity: 0, scale: 0.15, y: 70, rotateX: 40 },
+            {
+                opacity: 1,
+                scale: 1,
+                y: 0,
+                rotateX: 0,
+                duration: 1,
+                ease: "elastic.out(1, 0.45)",
             },
+            "+=0.1",
+        );
+
+        // Phase 6 : Confetti + cœurs si réussi
+        if (passed) {
+            tl.add(function () {
+                showConfetti();
+                showHearts();
+            }, "-=0.6");
+        }
+
+        // Phase 7 : Recap cascade
+        tl.add(function () {
+            var items = quizRecap.querySelectorAll(".recap-item");
+            gsap.fromTo(
+                items,
+                { opacity: 0, x: 50, scale: 0.85 },
+                {
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    stagger: 0.12,
+                    duration: 0.5,
+                    ease: "back.out(1.5)",
+                },
+            );
+        }, "+=0.15");
+
+        // Phase 8 : Bouton
+        var btnDelay = "+=(" + (QUIZ_QUESTIONS.length * 0.12 + 0.3) + ")";
+        if (passed) {
+            tl.fromTo(
+                quizCalendarBtn,
+                { opacity: 0, y: 30, scale: 0.6 },
+                {
+                    opacity: 1,
+                    y: 0,
+                    scale: 1,
+                    duration: 0.6,
+                    ease: "back.out(2.5)",
+                },
+                btnDelay,
+            );
+        } else {
+            tl.fromTo(
+                quizRetryBtn,
+                { opacity: 0, y: 25 },
+                { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+                btnDelay,
+            );
+        }
+    }
+
+    /** Construit le contenu HTML du résultat + recap */
+    function buildQuizResult(total, passed) {
+        if (passed) {
+            quizResultText.innerHTML =
+                "Bravo mon amour ! 🎉<br>" +
+                "Tu as obtenu <strong>" +
+                score +
+                "/" +
+                total +
+                "</strong> !<br>" +
+                "Ton calendrier t'attend...";
+            quizRetryBtn.hidden = true;
+            quizCalendarBtn.hidden = false;
+            localStorage.setItem("quizPassed", "true");
+        } else {
+            quizResultText.innerHTML =
+                "Tu as obtenu <strong>" +
+                score +
+                "/" +
+                total +
+                "</strong>.<br>" +
+                "Il faut au moins " +
+                MIN_SCORE +
+                " bonnes réponses !<br>" +
+                "Réessaie, je sais que tu peux le faire ! ❤️";
+            quizRetryBtn.hidden = false;
+            quizCalendarBtn.hidden = true;
+        }
+
+        // Recap de chaque question
+        quizRecap.innerHTML = "";
+        QUIZ_QUESTIONS.forEach(function (q, i) {
+            var isCorrect = userAnswers[i] === q.correct;
+            var item = document.createElement("div");
+            item.className = "recap-item " + (isCorrect ? "correct" : "wrong");
+
+            var html =
+                '<div class="recap-header">' +
+                '<span class="recap-icon">' +
+                (isCorrect ? "✅" : "❌") +
+                "</span>" +
+                '<span class="recap-question">' +
+                q.question +
+                "</span>" +
+                "</div>";
+
+            if (isCorrect) {
+                html +=
+                    '<div class="recap-answer correct-answer">' +
+                    q.choices[q.correct] +
+                    "</div>";
+            } else {
+                html +=
+                    '<div class="recap-answer wrong-answer">' +
+                    q.choices[userAnswers[i]] +
+                    "</div>";
+                html +=
+                    '<div class="recap-answer correct-answer">Bonne réponse : ' +
+                    q.choices[q.correct] +
+                    "</div>";
+            }
+
+            item.innerHTML = html;
+            quizRecap.appendChild(item);
         });
     }
 
@@ -1075,7 +1336,6 @@
             });
         }
 
-        // Animer la sortie des cartes existantes puis afficher les nouvelles
         var currentCards = calendarGrid.querySelectorAll(".day-card");
         if (currentCards.length > 0) {
             gsap.to(currentCards, {
@@ -1136,9 +1396,7 @@
                 shortMonth +
                 "</span>" +
                 (isLocked ? '<span class="day-lock">🔒</span>' : "") +
-                (isToday
-                    ? '<span class="day-badge">Aujourd\'hui</span>'
-                    : "") +
+                (isToday ? '<span class="day-badge">Aujourd\'hui</span>' : "") +
                 (isOpened && !isToday
                     ? '<span class="day-check">✓</span>'
                     : "");
@@ -1194,7 +1452,6 @@
         modalReasonText.textContent = text;
         modalContent.classList.toggle("locked", isLocked);
 
-        // Préparer les états initiaux avant d'afficher
         gsap.set(modalOverlay, { opacity: 0 });
         gsap.set(modalContent, {
             opacity: 0,
@@ -1214,14 +1471,12 @@
 
         var tl = gsap.timeline();
 
-        // Overlay
         tl.to(modalOverlay, {
             opacity: 1,
             duration: 0.35,
             ease: "power2.out",
         });
 
-        // Contenu — entrée élastique 3D
         tl.to(
             modalContent,
             {
@@ -1235,7 +1490,6 @@
             "-=0.2",
         );
 
-        // Cœur qui tourne et apparait
         tl.to(
             modalHeart,
             {
@@ -1247,7 +1501,6 @@
             "-=0.5",
         );
 
-        // Titre et date
         tl.to(
             [modalDayTitle, modalDayDate],
             {
@@ -1260,7 +1513,6 @@
             "-=0.35",
         );
 
-        // Texte de la raison
         tl.to(
             modalReasonText,
             {
@@ -1272,7 +1524,6 @@
             "-=0.15",
         );
 
-        // Bouton fermer
         tl.to(
             modalClose,
             {
@@ -1284,7 +1535,6 @@
             "-=0.3",
         );
 
-        // Sparkles si jour débloqué
         if (!isLocked) {
             tl.add(function () {
                 createSparkles(modalContent);
@@ -1371,7 +1621,6 @@
         loginForm.addEventListener("submit", handleLogin);
         logoutBtn.addEventListener("click", handleLogout);
 
-        quizNextBtn.addEventListener("click", handleNextQuestion);
         quizRetryBtn.addEventListener("click", initQuiz);
         quizCalendarBtn.addEventListener("click", function () {
             if (isTransitioning) return;
